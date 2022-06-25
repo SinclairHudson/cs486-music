@@ -26,7 +26,6 @@ class Encoder(nn.Module):
         return x
 
 
-
 class Decoder(nn.Module):
     def __init__(self, embedding_dim=64, step_size=4):
         super(Decoder, self).__init__()
@@ -53,7 +52,7 @@ class Decoder(nn.Module):
 
 
 class Compressor(nn.Module):
-    def __init__(self, step_size=16, vocab_size=512):
+    def __init__(self, step_size=16, vocab_size=16):
         super(Compressor, self).__init__()
         self.encoder = Encoder(step_size=step_size)
         self.decoder = Decoder(step_size=step_size)
@@ -68,4 +67,4 @@ class Compressor(nn.Module):
         encoded = self.encoder(x)
         z_q, diff, ind = self.quantizer(encoded)
         initial = self.decoder(z_q)
-        return initial[:,:,:,:-1], diff  # cut the last
+        return initial[:,:,:,:-1], diff, ind  # cut the last

@@ -27,7 +27,7 @@ optimizer = Adam(compressor.parameters(), lr=LR)
 
 inv = InverseSpectrogram(n_fft=800)
 
-loss_fn = nn.L1Loss()
+loss_fn = nn.MSELoss()
 
 def ml_representation_to_audio(x):
     assert len(x.shape) == 4
@@ -48,18 +48,21 @@ def spectrogram_to_ml_representation(x):
 for epoch in range(N_EPOCHS):
     epoch_loss = []
     sample = None
+    inds= None
     for x_imaginary in tqdm(train_loader):
         optimizer.zero_grad()
         x = spectrogram_to_ml_representation(x_imaginary.to(device))
-        xhat, diff = compressor(x)
+        xhat, diff, ind = compressor(x)
         recon_loss = loss_fn(x, xhat)
-        loss = diff + recon_loss
+        loss = diff * 500 + recon_loss
         epoch_loss.append(loss.item())
         loss.backward()
         optimizer.step()
         torchaudio.save("x.wav", ml_representation_to_audio(x), sample_rate=44100)
         sample = ml_representation_to_audio(xhat)
+        inds = ind
 
+    print(inds)
     print(f"avg epoch loss: {sum(epoch_loss)/len(epoch_loss)}")
     torchaudio.save(f"sample_epoch_{epoch}.wav", sample, sample_rate=44100)
 
