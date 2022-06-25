@@ -35,5 +35,5 @@ class LofiDataset(Dataset):
     def  __getitem__(self, index):
         raw_audio, sample_rate = torchaudio.load(self.good_audio_files[index])
         stop = sample_rate * self.min_length
-        raw_audio = raw_audio[0][:stop]
+        raw_audio = raw_audio[0][:stop]  # one channel
         return self.transform(raw_audio)
