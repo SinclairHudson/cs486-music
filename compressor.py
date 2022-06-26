@@ -70,11 +70,12 @@ class Compressor(nn.Module):
         encoded = self.encoder(x)
         z_q, codebook_loss, ind = self.quantizer(encoded, return_indices=True)
         initial = self.decoder(z_q)
-        return initial[:,:,:,:-3], codebook_loss, ind  # cut the last
+        return initial[:,:,:,:-4], codebook_loss, ind  # cut the last
 
     def random_restart(self):
-        self.quantizer.random_restart()
+        proportion = self.quantizer.random_restart()
         self.quantizer.reset_usage()
+        return proportion
 
     def get_perplexity(self):
         return self.quantizer.perplexity

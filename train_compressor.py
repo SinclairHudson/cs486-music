@@ -9,19 +9,21 @@ from tqdm import tqdm
 from torchaudio.transforms import InverseSpectrogram, Spectrogram
 from compressor import Compressor
 import pprint
+from loss import SpectrogramLoss
 
 pp = pprint.PrettyPrinter()
 
 
 c = {
-    "N_EPOCHS": 500,
-    "BATCH_SIZE": 4,
+    "N_EPOCHS": 750,
+    "BATCH_SIZE": 16,
     "LR": 0.005,
-    "VOCAB_SIZE": 64,
+    "VOCAB_SIZE": 128,
     "BETA": 1,
-    "SONG_LENGTH": 5,
+    "SONG_LENGTH": 10,
     "CODEBOOK_LOSS_W": 1,
-    "RECON_LOSS_W": 100,
+    "RECON_LOSS_W": 50,
+    "UNDERLYING": "L2",
 }
 
 wandb.init(project="lofi-compressor", config=c)
@@ -42,14 +44,21 @@ train_dataset = LofiDataset("/media/sinclair/datasets4/lofi/good_splits",
                             spectrogram=s,
                             length=c.SONG_LENGTH)
 
-train_loader = DataLoader(train_dataset, batch_size=c.BATCH_SIZE, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=c.BATCH_SIZE, shuffle=True,
+                          num_workers=4, pin_memory=True, prefetch_factor=2)
 
 compressor = Compressor(step_size=16, vocab_size=c.VOCAB_SIZE, beta=c.BETA).to(device)
 
+start_point = None
+if not start_point is None:
+    compressor.load_state_dict(torch.load(start_point))
+
+
 optimizer = Adam(compressor.parameters(), lr=c.LR)
 
+pp.pprint(c)
 
-loss_fn = nn.MSELoss()
+loss_fn = SpectrogramLoss(underlying=c.UNDERLYING)
 
 def ml_representation_to_audio(x):
     assert len(x.shape) == 4
@@ -67,11 +76,12 @@ def spectrogram_to_ml_representation(x):
     return x_ml
 
 
-best_avg_recon_loss = 0.25
+best_l2_recon_loss = 0.35
 
 for epoch in range(c.N_EPOCHS):
     print("=" * 10 + f"starting epoch {epoch}." + "=" * 10)
     epoch_loss = []
+    epoch_l2 = []
     epoch_codebook_loss = []
     epoch_reconstruction_loss = []
     sample = None
@@ -86,27 +96,29 @@ for epoch in range(c.N_EPOCHS):
         epoch_codebook_loss.append(codebook_loss.item())
         epoch_reconstruction_loss.append(recon_loss.item())
         epoch_loss.append(loss.item())
+        epoch_l2.append(torch.mean((x - xhat) ** 2).item())
         loss.backward()
         optimizer.step()
         sample = ml_representation_to_audio(xhat)
 
-    compressor.random_restart()
+    prop_restarted = compressor.random_restart()
     embedding = compressor.quantizer.embedding.weight
     avg_recon_loss = sum(epoch_reconstruction_loss)/len(epoch_reconstruction_loss)
 
-    print(embedding)
     summary = {
         "latent_space_perplexity": compressor.quantizer.perplexity,
         "avg_epoch_loss": sum(epoch_loss)/len(epoch_loss),
         "avg_codebook_loss": sum(epoch_codebook_loss)/len(epoch_codebook_loss),
-        "avg_recon_loss": avg_recon_loss
+        "avg_recon_loss": avg_recon_loss,
+        "avg_l2_loss": sum(epoch_l2)/len(epoch_l2),
+        "proportion_restarted": prop_restarted
         }
     pp.pprint(summary)
     wandb.log(summary)
-    if avg_recon_loss < best_avg_recon_loss:
+    if sum(epoch_l2)/len(epoch_l2) < best_l2_recon_loss:
         # save the model
         best_avg_recon_loss = avg_recon_loss
+        torch.save(compressor.state_dict(), f"io/best_epoch_run_{wandb.run.name}.pth")
+        torchaudio.save(f"io/best_epoch_{wandb.run.name}_clip.wav", sample, sample_rate=44100)
 
-    if epoch % 5 == 0 or epoch == c.N_EPOCHS-1:
-        torchaudio.save(f"io/sample_epoch_{epoch}.wav", sample, sample_rate=44100)
 

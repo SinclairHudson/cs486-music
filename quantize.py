@@ -123,7 +123,7 @@ class VectorQuantizer2d(nn.Module):
     https://gist.github.com/a-kore/4befe292249098854f088c0c03606eda#file-vectorquantization-py
     """
 
-    def __init__(self, n_e=1024, e_dim=256, beta=0.25, usage_threshold=1.0e-3):
+    def __init__(self, n_e=1024, e_dim=256, beta=0.25, usage_threshold=1.0e-7):
         super().__init__()
 
         self.n_e = n_e
@@ -162,6 +162,8 @@ class VectorQuantizer2d(nn.Module):
         with torch.no_grad():
             print(f"resetting {len(dead_codes)/self.n_e} of the total codes, they were dead.")
             self.embedding.weight[dead_codes] = self.embedding.weight[rand_codes]
+
+        return len(dead_codes)/self.n_e
 
     def forward(self, z, return_indices=False):
         """
