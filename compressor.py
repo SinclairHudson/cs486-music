@@ -1,5 +1,5 @@
 import torch.nn as nn
-from quantize import VQVAEQuantize
+from quantize import VQVAEQuantize, VectorQuantizer2d
 
 class Encoder(nn.Module):
     def __init__(self, step_size=4):
@@ -56,7 +56,7 @@ class Compressor(nn.Module):
         super(Compressor, self).__init__()
         self.encoder = Encoder(step_size=step_size)
         self.decoder = Decoder(step_size=step_size)
-        self.quantizer = VQVAEQuantize(num_hiddens=64, n_embed=vocab_size, embedding_dim=64)
+        self.quantizer = VectorQuantizer2d(n_e=vocab_size, e_dim=64)
 
     def forward(self, x):
         """
@@ -65,6 +65,14 @@ class Compressor(nn.Module):
         and L is length of the spectrogram.
         """
         encoded = self.encoder(x)
-        z_q, diff, ind = self.quantizer(encoded)
+        z_q, codebook_loss, ind = self.quantizer(encoded, return_indices=True)
         initial = self.decoder(z_q)
-        return initial[:,:,:,:-1], diff, ind  # cut the last
+        return initial[:,:,:,:-1], codebook_loss, ind  # cut the last
+
+    def random_restart(self):
+        self.quantizer.random_restart()
+        self.quantizer.reset_usage()
+
+    def get_perplexity(self):
+        return self.quantizer.perplexity
+

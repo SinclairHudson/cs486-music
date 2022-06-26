@@ -12,7 +12,9 @@ from compressor import Compressor
 N_EPOCHS = 100
 BATCH_SIZE = 4
 LR = 0.001
+VOCAB_SIZE = 64
 
+# n_fft controls the height of the spectrogram, how many frequency bins there are
 s = Spectrogram(n_fft=800, return_complex=True, power=None)
 inv = InverseSpectrogram(n_fft=800)
 
@@ -22,10 +24,10 @@ train_dataset = LofiDataset("/media/sinclair/datasets4/lofi/good_splits",
                             length=45)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-compressor = Compressor().to(device)
+compressor = Compressor(step_size=16, vocab_size=VOCAB_SIZE).to(device)
+
 optimizer = Adam(compressor.parameters(), lr=LR)
 
-inv = InverseSpectrogram(n_fft=800)
 
 loss_fn = nn.MSELoss()
 
@@ -47,22 +49,27 @@ def spectrogram_to_ml_representation(x):
 
 for epoch in range(N_EPOCHS):
     epoch_loss = []
+    epoch_codebook_loss = []
+    epoch_reconstruction_loss = []
     sample = None
-    inds= None
+
     for x_imaginary in tqdm(train_loader):
         optimizer.zero_grad()
         x = spectrogram_to_ml_representation(x_imaginary.to(device))
-        xhat, diff, ind = compressor(x)
+        xhat, codebook_loss, ind = compressor(x)
         recon_loss = loss_fn(x, xhat)
-        loss = diff * 500 + recon_loss
+        loss = recon_loss + codebook_loss
+
+        epoch_codebook_loss.append(codebook_loss.item())
+        epoch_reconstruction_loss.append(recon_loss.item())
         epoch_loss.append(loss.item())
         loss.backward()
         optimizer.step()
-        torchaudio.save("x.wav", ml_representation_to_audio(x), sample_rate=44100)
         sample = ml_representation_to_audio(xhat)
-        inds = ind
 
-    print(inds)
+    compressor.random_restart()
     print(f"avg epoch loss: {sum(epoch_loss)/len(epoch_loss)}")
-    torchaudio.save(f"sample_epoch_{epoch}.wav", sample, sample_rate=44100)
+    print(f"avg recon loss loss: {sum(epoch_reconstruction_loss)/len(epoch_reconstruction_loss)}")
+    print(f"avg codebook loss: {sum(epoch_codebook_loss)/len(epoch_codebook_loss)}")
+    torchaudio.save(f"io/sample_epoch_{epoch}.wav", sample, sample_rate=44100)
 
