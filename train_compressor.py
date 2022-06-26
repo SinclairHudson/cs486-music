@@ -9,10 +9,12 @@ from torchaudio.transforms import InverseSpectrogram, Spectrogram
 from compressor import Compressor
 
 
-N_EPOCHS = 100
+N_EPOCHS = 500
 BATCH_SIZE = 4
-LR = 0.001
+LR = 0.01
 VOCAB_SIZE = 64
+BETA = 1
+SONG_LENGTH = 5
 
 # n_fft controls the height of the spectrogram, how many frequency bins there are
 s = Spectrogram(n_fft=800, return_complex=True, power=None)
@@ -21,10 +23,11 @@ inv = InverseSpectrogram(n_fft=800)
 device = torch.device("cuda:0")
 train_dataset = LofiDataset("/media/sinclair/datasets4/lofi/good_splits",
                             spectrogram=s,
-                            length=45)
+                            length=SONG_LENGTH)
+
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-compressor = Compressor(step_size=16, vocab_size=VOCAB_SIZE).to(device)
+compressor = Compressor(step_size=16, vocab_size=VOCAB_SIZE, beta=BETA).to(device)
 
 optimizer = Adam(compressor.parameters(), lr=LR)
 
@@ -48,6 +51,7 @@ def spectrogram_to_ml_representation(x):
 
 
 for epoch in range(N_EPOCHS):
+    print("=" * 10 + f"starting epoch {epoch}." + "=" * 10)
     epoch_loss = []
     epoch_codebook_loss = []
     epoch_reconstruction_loss = []
@@ -58,7 +62,7 @@ for epoch in range(N_EPOCHS):
         x = spectrogram_to_ml_representation(x_imaginary.to(device))
         xhat, codebook_loss, ind = compressor(x)
         recon_loss = loss_fn(x, xhat)
-        loss = recon_loss + codebook_loss
+        loss = 100 * recon_loss + codebook_loss
 
         epoch_codebook_loss.append(codebook_loss.item())
         epoch_reconstruction_loss.append(recon_loss.item())
@@ -68,8 +72,12 @@ for epoch in range(N_EPOCHS):
         sample = ml_representation_to_audio(xhat)
 
     compressor.random_restart()
+    embedding = compressor.quantizer.embedding.weight
+    print(embedding)
+    print(f"latent space perplexity: {compressor.quantizer.perplexity}")
     print(f"avg epoch loss: {sum(epoch_loss)/len(epoch_loss)}")
     print(f"avg recon loss loss: {sum(epoch_reconstruction_loss)/len(epoch_reconstruction_loss)}")
     print(f"avg codebook loss: {sum(epoch_codebook_loss)/len(epoch_codebook_loss)}")
-    torchaudio.save(f"io/sample_epoch_{epoch}.wav", sample, sample_rate=44100)
+    if epoch % 5 == 0 or epoch == N_EPOCHS-1:
+        torchaudio.save(f"io/sample_epoch_{epoch}.wav", sample, sample_rate=44100)
 

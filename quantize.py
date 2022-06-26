@@ -141,6 +141,9 @@ class VectorQuantizer2d(nn.Module):
         self.loss = None
 
     def dequantize(self, z):
+        """
+        Takes int tensor and uses the embedding to create the latent vectors.
+        """
         z_flattened = z.view(-1, self.e_dim)
         z_q = self.embedding(z_flattened).view(z.shape)
         return z_q

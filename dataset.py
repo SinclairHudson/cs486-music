@@ -28,6 +28,7 @@ class LofiDataset(Dataset):
         print(f"Initialized LofiDataset with {self.__len__()} songs " \
               f"of length {self.min_length}.")
         print(f"Total audio time is {self.__len__() * self.min_length} seconds.")
+        print(f"input size for a single instance is {self.__getitem__(0).size()}.")
 
     def __len__(self):
         return len(self.good_audio_files)

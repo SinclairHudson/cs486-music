@@ -42,7 +42,10 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(64, 32, kernel_size=7, stride=1, padding=6, dilation=2),
             nn.GroupNorm(1, 32),
             nn.ReLU(),
-            nn.ConvTranspose2d(32, 2, kernel_size=(5, 6), stride=1, padding=4, dilation=2),
+            nn.ConvTranspose2d(32, 32, kernel_size=(5, 8), stride=1, padding=4, dilation=2),
+            nn.GroupNorm(1, 32),
+            nn.ReLU(),
+            nn.Conv2d(32, 2, kernel_size=1),
         ])
 
     def forward(self, x):
@@ -52,11 +55,11 @@ class Decoder(nn.Module):
 
 
 class Compressor(nn.Module):
-    def __init__(self, step_size=16, vocab_size=16):
+    def __init__(self, step_size=16, vocab_size=16, beta=1):
         super(Compressor, self).__init__()
         self.encoder = Encoder(step_size=step_size)
         self.decoder = Decoder(step_size=step_size)
-        self.quantizer = VectorQuantizer2d(n_e=vocab_size, e_dim=64)
+        self.quantizer = VectorQuantizer2d(n_e=vocab_size, e_dim=64, beta=beta)
 
     def forward(self, x):
         """
@@ -67,7 +70,7 @@ class Compressor(nn.Module):
         encoded = self.encoder(x)
         z_q, codebook_loss, ind = self.quantizer(encoded, return_indices=True)
         initial = self.decoder(z_q)
-        return initial[:,:,:,:-1], codebook_loss, ind  # cut the last
+        return initial[:,:,:,:-3], codebook_loss, ind  # cut the last
 
     def random_restart(self):
         self.quantizer.random_restart()
