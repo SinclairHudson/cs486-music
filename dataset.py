@@ -18,12 +18,13 @@ class LofiDataset(Dataset):
         self.transform = spectrogram
 
         # filter audio_files by 
-        self.good_audio_files = []
+        self.clips = []
         for i, audio_file in enumerate(self.audio_files):
             info = torchaudio.info(os.path.join(self.root_path, audio_file))
             length = info.num_frames / info.sample_rate  # length in seconds
-            if length >= self.min_length:
-                self.good_audio_files.append(os.path.join(self.root_path, audio_file))
+            num_clips = int(length // self.min_length)
+            for x in range(num_clips):
+                self.clips.append((os.path.join(self.root_path, audio_file), x))  # store file and clip number
 
         print(f"Initialized LofiDataset with {self.__len__()} songs " \
               f"of length {self.min_length}.")
@@ -31,10 +32,13 @@ class LofiDataset(Dataset):
         print(f"input size for a single instance is {self.__getitem__(0).size()}.")
 
     def __len__(self):
-        return len(self.good_audio_files)
+        return len(self.clips)
 
     def  __getitem__(self, index):
-        raw_audio, sample_rate = torchaudio.load(self.good_audio_files[index])
-        stop = sample_rate * self.min_length
-        raw_audio = raw_audio[0][:stop]  # one channel
+        file_name, clip_index = self.clips[index]
+        raw_audio, sample_rate = torchaudio.load(file_name)
+        clip_length_in_samples = sample_rate * self.min_length
+        # left channel, and take the segment
+        raw_audio = raw_audio[0][clip_length_in_samples * clip_index:
+                                 clip_length_in_samples * (clip_index+1)]
         return self.transform(raw_audio)

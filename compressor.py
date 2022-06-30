@@ -106,3 +106,10 @@ class Compressor(nn.Module):
     def get_perplexity(self):
         return self.quantizer.perplexity
 
+    def get_latent_space_size(self, x):
+        with torch.no_grad():
+            latent = self.encoder(x)
+            z_q = self.quantizer(encoded, return_indices=True)
+            return z_q.size()
+
+

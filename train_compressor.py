@@ -14,15 +14,16 @@ pp = pprint.PrettyPrinter()
 
 
 c = {
-    "N_EPOCHS": 750,
+    "N_EPOCHS": 1500,
     "BATCH_SIZE": 8,
     "LR": 0.01,
-    "VOCAB_SIZE": 128,
+    "VOCAB_SIZE": 256,
     "BETA": 1,
     "SONG_LENGTH": 10,
     "CODEBOOK_LOSS_W": 1,
     "RECON_LOSS_W": 50,
-    "UNDERLYING": "L2",
+    "UNDERLYING": "L1",
+    "N_FFT": 800,
 }
 
 wandb.init(project="lofi-compressor", config=c)
@@ -35,7 +36,7 @@ codebook_loss_w = c.CODEBOOK_LOSS_W / loss_w
 recon_loss_w = c.RECON_LOSS_W / loss_w
 
 # n_fft controls the height of the spectrogram, how many frequency bins there are
-s = Spectrogram(n_fft=800, return_complex=True, power=None)
+s = Spectrogram(n_fft=c.N_FFT, return_complex=True, power=None)
 inv = InverseSpectrogram(n_fft=800)
 
 device = torch.device("cuda:0")
