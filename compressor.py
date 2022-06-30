@@ -1,17 +1,20 @@
 import torch.nn as nn
+import torch
 from quantize import VQVAEQuantize, VectorQuantizer2d
 
 class Encoder(nn.Module):
     def __init__(self, step_size=4):
         super(Encoder, self).__init__()
-        self.enc = nn.ModuleList([
+        self.enc1 = nn.ModuleList([
             nn.Conv2d(2, 32, kernel_size=5, stride=1, padding=4, dilation=2),
             nn.GroupNorm(1, 32),
             nn.ReLU(),
             nn.Conv2d(32, 64, kernel_size=7, stride=1, padding=6, dilation=2),
             nn.GroupNorm(1, 64),
-            nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=7, stride=(4, 2), padding=6, dilation=2),
+            nn.ReLU()
+        ])
+        self.enc2 = nn.ModuleList([
+            nn.Conv2d(2 + 64, 64, kernel_size=7, stride=(4, 2), padding=6, dilation=2),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=7, stride=(4, 2), padding=6, dilation=2),
@@ -21,37 +24,60 @@ class Encoder(nn.Module):
         ])
 
     def forward(self, x):
-        for layer in self.enc:
-            x = layer(x)
-        return x
+        y = x
+        for layer in self.enc1:
+            y = layer(y)
+        z = torch.cat((y, x), dim=1)
+
+        for layer in self.enc2:
+            z = layer(z)
+        return z
 
 
 class Decoder(nn.Module):
     def __init__(self, embedding_dim=64, step_size=4):
         super(Decoder, self).__init__()
-        self.dec = nn.ModuleList([
-            nn.ConvTranspose2d(64, 64, kernel_size=(26, 1), padding=0),
+        self.dec1 = nn.ModuleList([
+
+            nn.ConvTranspose2d(64, 92, kernel_size=(1, 1), padding=0),
+            nn.GroupNorm(1, 92),
+            nn.ReLU(),
+
+            nn.ConvTranspose2d(92, 64, kernel_size=(26, 1), padding=0),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
             nn.ConvTranspose2d(64, 64, kernel_size=7, stride=(4, 2), padding=6, dilation=2),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 64, kernel_size=7, stride=(4, 2), padding=6, dilation=2),
+            nn.ConvTranspose2d(64, 64, kernel_size=7, stride=(4, 2), padding=7, dilation=2),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, kernel_size=7, stride=1, padding=6, dilation=2),
-            nn.GroupNorm(1, 32),
+
+            nn.ConvTranspose2d(64, 64, kernel_size=7, stride=1, padding=(2, 1), dilation=1),
+            nn.GroupNorm(1, 64),
             nn.ReLU(),
-            nn.ConvTranspose2d(32, 32, kernel_size=(5, 8), stride=1, padding=4, dilation=2),
-            nn.GroupNorm(1, 32),
-            nn.ReLU(),
-            nn.Conv2d(32, 2, kernel_size=1),
         ])
 
+        # ensure that dec2 doesn't change size
+        self.dec2 = nn.ModuleList([
+            nn.ConvTranspose2d(64, 32, kernel_size=7, stride=1, padding=3),
+            nn.GroupNorm(1, 32),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 32, kernel_size=7, stride=1, padding=3),
+            nn.GroupNorm(1, 32),
+            nn.ReLU(),
+        ])
+
+        self.head = nn.Conv2d(32+64, 2, kernel_size=1)
+
     def forward(self, x):
-        for layer in self.dec:
+        for layer in self.dec1:
             x = layer(x)
-        return x
+        y = x
+        for layer in self.dec2:
+            y = layer(y)
+
+        return self.head(torch.cat((x, y), dim=1))
 
 
 class Compressor(nn.Module):
@@ -70,7 +96,7 @@ class Compressor(nn.Module):
         encoded = self.encoder(x)
         z_q, codebook_loss, ind = self.quantizer(encoded, return_indices=True)
         initial = self.decoder(z_q)
-        return initial[:,:,:,:-4], codebook_loss, ind  # cut the last
+        return initial[:,:,:,:], codebook_loss, ind  # cut the last
 
     def random_restart(self):
         proportion = self.quantizer.random_restart()

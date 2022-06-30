@@ -1,6 +1,5 @@
 import wandb
 import torch
-import torch.nn as nn
 import torchaudio
 from torch.optim import Adam
 from dataset import LofiDataset
@@ -16,8 +15,8 @@ pp = pprint.PrettyPrinter()
 
 c = {
     "N_EPOCHS": 750,
-    "BATCH_SIZE": 16,
-    "LR": 0.005,
+    "BATCH_SIZE": 8,
+    "LR": 0.01,
     "VOCAB_SIZE": 128,
     "BETA": 1,
     "SONG_LENGTH": 10,
@@ -76,7 +75,7 @@ def spectrogram_to_ml_representation(x):
     return x_ml
 
 
-best_l2_recon_loss = 0.35
+best_l2_recon_loss = 0.45
 
 for epoch in range(c.N_EPOCHS):
     print("=" * 10 + f"starting epoch {epoch}." + "=" * 10)
