@@ -15,8 +15,8 @@ pp = pprint.PrettyPrinter()
 
 
 c = {
-    "N_EPOCHS_0": 10,
-    "N_EPOCHS_1": 100,
+    "N_EPOCHS_0": 50,
+    "N_EPOCHS_1": 200,
     "BATCH_SIZE": 8,
     "LR_0": 0.01,
     "LR_1": 0.005,
@@ -62,6 +62,7 @@ with torch.no_grad():
     latent = compressor.encoder(x)
     density = latent.shape[-1] * latent.shape[-2] / c.SONG_LENGTH
     print(f"num latent codes per second: {density}")
+    print(f"size of the latent space for a single clip: {latent.shape[-2:]}")
 
 pp.pprint(c)
 
@@ -78,6 +79,7 @@ for epoch in range(c.N_EPOCHS_0):
     epoch_codebook_loss = []
     epoch_reconstruction_loss = []
     sample = None
+    sample_inds = None
 
     for x_imaginary in tqdm(train_loader):
         optimizer.zero_grad()
@@ -93,6 +95,7 @@ for epoch in range(c.N_EPOCHS_0):
         loss.backward()
         optimizer.step()
         sample = ml_representation_to_audio(xhat)
+        sample_inds = ind
 
     prop_restarted = compressor.random_restart()
     embedding = compressor.quantizer.embedding.weight
@@ -104,7 +107,8 @@ for epoch in range(c.N_EPOCHS_0):
         "avg_codebook_loss": sum(epoch_codebook_loss)/len(epoch_codebook_loss),
         "avg_recon_loss": avg_recon_loss,
         "avg_l2_loss": sum(epoch_l2)/len(epoch_l2),
-        "proportion_restarted": prop_restarted
+        "proportion_restarted": prop_restarted,
+        "indices": sample_inds
         }
     pp.pprint(summary)
     wandb.log(summary)
@@ -121,6 +125,7 @@ for epoch in range(c.N_EPOCHS_1):
     epoch_codebook_loss = []
     epoch_reconstruction_loss = []
     sample = None
+    sample_inds = None
 
     for x_imaginary in tqdm(train_loader):
         optimizer.zero_grad()
@@ -136,6 +141,7 @@ for epoch in range(c.N_EPOCHS_1):
         loss.backward()
         optimizer.step()
         sample = ml_representation_to_audio(xhat)
+        sample_inds = ind
 
     prop_restarted = compressor.random_restart()
     embedding = compressor.quantizer.embedding.weight
@@ -147,7 +153,8 @@ for epoch in range(c.N_EPOCHS_1):
         "avg_codebook_loss": sum(epoch_codebook_loss)/len(epoch_codebook_loss),
         "avg_recon_loss": avg_recon_loss,
         "avg_l2_loss": sum(epoch_l2)/len(epoch_l2),
-        "proportion_restarted": prop_restarted
+        "proportion_restarted": prop_restarted,
+        "indices": sample_inds
         }
     pp.pprint(summary)
     wandb.log(summary)
