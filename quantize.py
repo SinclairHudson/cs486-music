@@ -123,7 +123,7 @@ class VectorQuantizer2d(nn.Module):
     https://gist.github.com/a-kore/4befe292249098854f088c0c03606eda#file-vectorquantization-py
     """
 
-    def __init__(self, n_e=1024, e_dim=256, beta=0.25, usage_threshold=1.0e-7):
+    def __init__(self, n_e=1024, e_dim=256, beta=0.25, usage_threshold=1.0e-6):
         super().__init__()
 
         self.n_e = n_e

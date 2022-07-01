@@ -20,7 +20,7 @@ class Encoder(nn.Module):
             nn.Conv2d(64, 64, kernel_size=7, stride=(4, 2), padding=6, dilation=2),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=(26, 1), padding=0),
+            nn.Conv2d(64, 64, kernel_size=(13, 1), padding=0),
         ])
 
     def forward(self, x):
@@ -43,7 +43,7 @@ class Decoder(nn.Module):
             nn.GroupNorm(1, 92),
             nn.ReLU(),
 
-            nn.ConvTranspose2d(92, 64, kernel_size=(26, 1), padding=0),
+            nn.ConvTranspose2d(92, 64, kernel_size=(13, 1), padding=0),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
             nn.ConvTranspose2d(64, 64, kernel_size=7, stride=(4, 2), padding=6, dilation=2),
