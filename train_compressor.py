@@ -10,14 +10,15 @@ from compressor import Compressor
 import pprint
 from utils import spectrogram_to_ml_representation, ml_representation_to_audio
 from loss import SpectrogramLoss
+from resnet_compressor import ResCompressor
 
 pp = pprint.PrettyPrinter()
 
 
 c = {
-    "N_EPOCHS_0": 50,
-    "N_EPOCHS_1": 200,
-    "BATCH_SIZE": 8,
+    "N_EPOCHS_0": 100,
+    "N_EPOCHS_1": 500,
+    "BATCH_SIZE": 4,
     "LR_0": 0.01,
     "LR_1": 0.005,
     "VOCAB_SIZE": 256,
@@ -51,7 +52,7 @@ train_dataset = LofiDataset("/media/sinclair/datasets4/lofi/good_splits",
 train_loader = DataLoader(train_dataset, batch_size=c.BATCH_SIZE, shuffle=True,
                           num_workers=4, pin_memory=True, prefetch_factor=2)
 
-compressor = Compressor(step_size=16, vocab_size=c.VOCAB_SIZE, beta=c.BETA).to(device)
+compressor = ResCompressor(step_size=16, vocab_size=c.VOCAB_SIZE, beta=c.BETA).to(device)
 
 start_point = None
 if not start_point is None:
