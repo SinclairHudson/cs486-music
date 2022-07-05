@@ -6,8 +6,7 @@ OFFSET = 0  # the start of the conter. Don't overwrite your earlier generated so
 MIN_SONG_LENGTH = 45
 DB_SILENCE_THRESH = -21
 MIN_SILENCE_LEN = 900
-myaudio = AudioSegment.from_wav("/media/sinclair/datasets4/lofi/2022-06-16-10:15:19.wav")
-# myaudio = AudioSegment.from_mp3("aaaaa.wav")
+myaudio = AudioSegment.from_wav("/media/sinclair/datasets4/lofi/test_dataset.wav")
 dBFS = myaudio.dBFS
 len_in_ms = len(myaudio)
 print(f"loaded a file that was {len_in_ms}ms long, {len_in_ms/(60 * 1000)} mins long, {len_in_ms/(60 * 60 * 1000)} hours long.")
@@ -29,7 +28,7 @@ for sil, (start, end) in tqdm(enumerate(silence)):
     last_end = silence[sil - 1][1]
     if abs(last_end - start) > MIN_SONG_LENGTH:  # if the distance to the next silence is greater than 60 seconds
         song = myaudio[last_end * 1000: (start)*1000]
-        song.export(f"/media/sinclair/datasets4/lofi/good_splits/song_{song_counter + OFFSET}.wav", format="wav")
+        song.export(f"/media/sinclair/datasets4/lofi/test_splits/song_{song_counter + OFFSET}.wav", format="wav")
         song_counter+=1
 print(f"exported {song_counter} songs. set OFFSET to {song_counter + OFFSET}")
 

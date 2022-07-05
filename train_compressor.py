@@ -11,13 +11,14 @@ import pprint
 from utils import spectrogram_to_ml_representation, ml_representation_to_audio
 from loss import SpectrogramLoss
 from resnet_compressor import ResCompressor
+from test import test
 
 pp = pprint.PrettyPrinter()
 
 
 c = {
-    "N_EPOCHS_0": 100,
-    "N_EPOCHS_1": 500,
+    "N_EPOCHS_0": 20,
+    "N_EPOCHS_1": 80,
     "BATCH_SIZE": 4,
     "LR_0": 0.01,
     "LR_1": 0.005,
@@ -29,6 +30,7 @@ c = {
     "UNDERLYING_0": "L2",
     "UNDERLYING_1": "L1",
     "N_FFT": 800,
+    "TEST_EVERY_N_EPOCHS": 10
 }
 
 wandb.init(project="lofi-compressor", config=c)
@@ -50,6 +52,13 @@ train_dataset = LofiDataset("/media/sinclair/datasets4/lofi/good_splits",
                             length=c.SONG_LENGTH)
 
 train_loader = DataLoader(train_dataset, batch_size=c.BATCH_SIZE, shuffle=True,
+                          num_workers=4, pin_memory=True, prefetch_factor=2)
+
+test_dataset = LofiDataset("/media/sinclair/datasets4/lofi/test_splits",
+                            spectrogram=s,
+                            length=c.SONG_LENGTH)
+
+test_loader = DataLoader(test_dataset, batch_size=c.BATCH_SIZE, shuffle=False,
                           num_workers=4, pin_memory=True, prefetch_factor=2)
 
 compressor = ResCompressor(step_size=16, vocab_size=c.VOCAB_SIZE, beta=c.BETA).to(device)
@@ -74,7 +83,7 @@ loss_fn = SpectrogramLoss(underlying=c.UNDERLYING_0)
 optimizer = Adam(compressor.parameters(), lr=c.LR_0)
 
 for epoch in range(c.N_EPOCHS_0):
-    print("=" * 10 + f"starting epoch {epoch}." + "=" * 10)
+    print("=" * 10 + f"starting epoch {epoch}" + "=" * 10)
     epoch_loss = []
     epoch_l2 = []
     epoch_codebook_loss = []
@@ -85,7 +94,6 @@ for epoch in range(c.N_EPOCHS_0):
     for x_imaginary in tqdm(train_loader):
         optimizer.zero_grad()
         x = spectrogram_to_ml_representation(x_imaginary.to(device))
-        breakpoint()
         xhat, codebook_loss, ind = compressor(x)
         recon_loss = loss_fn(x, xhat)
         loss = recon_loss_w * recon_loss + codebook_loss_w *codebook_loss
@@ -98,7 +106,6 @@ for epoch in range(c.N_EPOCHS_0):
         optimizer.step()
         sample = ml_representation_to_audio(xhat)
         sample_inds = ind
-        break
 
     prop_restarted = compressor.random_restart()
     embedding = compressor.quantizer.embedding.weight
@@ -113,6 +120,11 @@ for epoch in range(c.N_EPOCHS_0):
         "proportion_restarted": prop_restarted,
         "indices": sample_inds
         }
+
+    if epoch % c.TEST_EVERY_N_EPOCHS == 0:
+        test_summary = test(compressor, test_loader, loss_fn, recon_loss_w, codebook_loss_w)
+        summary.update(test_summary)
+
     pp.pprint(summary)
     wandb.log(summary)
 
@@ -122,7 +134,7 @@ optimizer = Adam(compressor.parameters(), lr=c.LR_1)
 
 
 for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
-    print("=" * 10 + f"starting epoch {epoch}." + "=" * 10)
+    print("=" * 10 + f"starting epoch {epoch}" + "=" * 10)
     epoch_loss = []
     epoch_l2 = []
     epoch_codebook_loss = []
@@ -159,6 +171,11 @@ for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
         "proportion_restarted": prop_restarted,
         "indices": sample_inds
         }
+
+    if epoch % c.TEST_EVERY_N_EPOCHS == 0:
+        test_summary = test(compressor, test_loader, loss_fn, recon_loss_w, codebook_loss_w)
+        summary.update(test_summary)
+
     pp.pprint(summary)
     wandb.log(summary)
     if sum(epoch_l2)/len(epoch_l2) < best_l2_recon_loss:
