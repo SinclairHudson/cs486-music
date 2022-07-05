@@ -85,6 +85,7 @@ for epoch in range(c.N_EPOCHS_0):
     for x_imaginary in tqdm(train_loader):
         optimizer.zero_grad()
         x = spectrogram_to_ml_representation(x_imaginary.to(device))
+        breakpoint()
         xhat, codebook_loss, ind = compressor(x)
         recon_loss = loss_fn(x, xhat)
         loss = recon_loss_w * recon_loss + codebook_loss_w *codebook_loss
@@ -97,6 +98,7 @@ for epoch in range(c.N_EPOCHS_0):
         optimizer.step()
         sample = ml_representation_to_audio(xhat)
         sample_inds = ind
+        break
 
     prop_restarted = compressor.random_restart()
     embedding = compressor.quantizer.embedding.weight
@@ -119,7 +121,7 @@ loss_fn = SpectrogramLoss(underlying=c.UNDERLYING_1)
 optimizer = Adam(compressor.parameters(), lr=c.LR_1)
 
 
-for epoch in range(c.N_EPOCHS_1):
+for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
     print("=" * 10 + f"starting epoch {epoch}." + "=" * 10)
     epoch_loss = []
     epoch_l2 = []
@@ -164,5 +166,6 @@ for epoch in range(c.N_EPOCHS_1):
         best_avg_recon_loss = avg_recon_loss
         torch.save(compressor.state_dict(), f"io/best_epoch_run_{wandb.run.name}.pth")
         torchaudio.save(f"io/best_epoch_{wandb.run.name}_clip.wav", sample, sample_rate=44100)
+
 
 
