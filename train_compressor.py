@@ -17,8 +17,8 @@ pp = pprint.PrettyPrinter()
 
 
 c = {
-    "N_EPOCHS_0": 20,
-    "N_EPOCHS_1": 80,
+    "N_EPOCHS_0": 100,
+    "N_EPOCHS_1": 300,
     "BATCH_SIZE": 4,
     "LR_0": 0.01,
     "LR_1": 0.005,
@@ -63,7 +63,7 @@ test_loader = DataLoader(test_dataset, batch_size=c.BATCH_SIZE, shuffle=False,
 
 compressor = ResCompressor(step_size=16, vocab_size=c.VOCAB_SIZE, beta=c.BETA).to(device)
 
-start_point = None
+start_point = "io/best_epoch_run_polished-pyramid-52.pth"
 if not start_point is None:
     compressor.load_state_dict(torch.load(start_point))
 
@@ -73,6 +73,10 @@ with torch.no_grad():
     density = latent.shape[-1] * latent.shape[-2] / c.SONG_LENGTH
     print(f"num latent codes per second: {density}")
     print(f"size of the latent space for a single clip: {latent.shape[-2:]}")
+    c.density = density
+    wandb.config.update({"density": density,
+                         "latent_shape": latent.shape[-2:]})
+
 
 pp.pprint(c)
 
@@ -125,7 +129,6 @@ for epoch in range(c.N_EPOCHS_0):
         test_summary = test(compressor, test_loader, loss_fn, recon_loss_w, codebook_loss_w)
         summary.update(test_summary)
 
-    pp.pprint(summary)
     wandb.log(summary)
 
 print("starting stage 2")
@@ -176,7 +179,6 @@ for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
         test_summary = test(compressor, test_loader, loss_fn, recon_loss_w, codebook_loss_w)
         summary.update(test_summary)
 
-    pp.pprint(summary)
     wandb.log(summary)
     if sum(epoch_l2)/len(epoch_l2) < best_l2_recon_loss:
         # save the model
