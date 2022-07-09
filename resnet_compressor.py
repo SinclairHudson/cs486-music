@@ -16,12 +16,12 @@ class ResEncoder(nn.Module):
             ResBlock(64, 64)
         ])
         self.enc2 = nn.ModuleList([
-            nn.Conv2d(2 + 64, 64, kernel_size=7, stride=(4, 4), padding=6, dilation=2),
+            nn.Conv2d(2 + 64, 64, kernel_size=7, stride=(4, 2), padding=6, dilation=2),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
             ResBlock(64, 92),
             ResBlock(92, 64),
-            nn.Conv2d(64, 64, kernel_size=7, stride=(4, 4), padding=6, dilation=2),
+            nn.Conv2d(64, 64, kernel_size=7, stride=(4, 2), padding=6, dilation=2),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
             ResBlock(64, 128),
@@ -54,15 +54,15 @@ class ResDecoder(nn.Module):
             nn.GroupNorm(1, 64),
             nn.ReLU(),
             ResBlock(64, 64),
-            nn.ConvTranspose2d(64, 64, kernel_size=7, stride=(4, 4), padding=(3, 5), dilation=2),
+            nn.ConvTranspose2d(64, 64, kernel_size=7, stride=(4, 2), padding=(3, 5), dilation=2),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 64, kernel_size=7, stride=(4, 4), padding=(4, 5), dilation=2),
+            nn.ConvTranspose2d(64, 64, kernel_size=7, stride=(4, 2), padding=(4, 5), dilation=2),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
             ResBlock(64, 64),
 
-            nn.ConvTranspose2d(64, 64, kernel_size=7, stride=1, padding=(1, 1), dilation=1),
+            nn.ConvTranspose2d(64, 64, kernel_size=7, stride=1, padding=(1, 5), dilation=1),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
         ])
