@@ -26,7 +26,7 @@ class ResEncoder(nn.Module):
             nn.ReLU(),
             ResBlock(64, 128),
             ResBlock(128, 92),
-            nn.Conv2d(92, 64, kernel_size=(4, 1), stride=(4, 1), padding=0),
+            nn.Conv2d(92, 64, kernel_size=(4, 1), stride=(1, 1), padding=0),
         ])
 
     def forward(self, x):
@@ -50,7 +50,7 @@ class ResDecoder(nn.Module):
             nn.ReLU(),
             ResBlock(92, 92),
 
-            nn.ConvTranspose2d(92, 64, kernel_size=(4, 1), stride=(4, 1), padding=0),
+            nn.ConvTranspose2d(92, 64, kernel_size=(4, 1), stride=(1, 1), padding=(1, 0)),
             nn.GroupNorm(1, 64),
             nn.ReLU(),
             ResBlock(64, 64),
