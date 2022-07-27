@@ -17,18 +17,18 @@ pp = pprint.PrettyPrinter()
 
 
 c = {
-    "N_EPOCHS_0": 100,
+    "N_EPOCHS_0": 200,
     "N_EPOCHS_1": 300,
     "BATCH_SIZE": 4,
-    "LR_0": 0.015,
-    "LR_1": 0.005,
-    "VOCAB_SIZE": 256,
+    "LR_0": 0.025,
+    "LR_1": 0.01,
+    "VOCAB_SIZE": 384,
     "BETA": 1,
     "SONG_LENGTH": 10,
     "CODEBOOK_LOSS_W": 1,
     "RECON_LOSS_W": 50,
     "UNDERLYING_0": "L2",
-    "UNDERLYING_1": "L1",
+    "UNDERLYING_1": "L2",
     "N_FFT": 800,
     "TEST_EVERY_N_EPOCHS": 10
 }
@@ -47,14 +47,14 @@ s = Spectrogram(n_fft=c.N_FFT, return_complex=True, power=None)
 inv = InverseSpectrogram(n_fft=c.N_FFT)
 
 device = torch.device("cuda:0")
-train_dataset = LofiDataset("/media/sinclair/datasets4/lofi/good_splits",
+train_dataset = LofiDataset("/media/sinclair/datasets/lofi/good_splits",
                             spectrogram=s,
                             length=c.SONG_LENGTH)
 
 train_loader = DataLoader(train_dataset, batch_size=c.BATCH_SIZE, shuffle=True,
                           num_workers=4, pin_memory=True, prefetch_factor=2)
 
-test_dataset = LofiDataset("/media/sinclair/datasets4/lofi/test_splits",
+test_dataset = LofiDataset("/media/sinclair/datasets/lofi/test_splits",
                             spectrogram=s,
                             length=c.SONG_LENGTH)
 
@@ -63,6 +63,7 @@ test_loader = DataLoader(test_dataset, batch_size=c.BATCH_SIZE, shuffle=False,
 
 compressor = ResCompressor(step_size=16, vocab_size=c.VOCAB_SIZE, beta=c.BETA).to(device)
 
+# start_point = "io/best_epoch_run_radiant-dew-70.pth"
 start_point = None
 if not start_point is None:
     compressor.load_state_dict(torch.load(start_point))
@@ -96,6 +97,7 @@ for epoch in range(c.N_EPOCHS_0):
     epoch_reconstruction_loss = []
     sample = None
     sample_inds = None
+    true_sample = None
 
     for x_imaginary in tqdm(train_loader):
         optimizer.zero_grad()
@@ -111,6 +113,7 @@ for epoch in range(c.N_EPOCHS_0):
         loss.backward()
         optimizer.step()
         sample = ml_representation_to_audio(xhat)
+        true_sample = ml_representation_to_audio(x)
         sample_inds = ind
 
     prop_restarted = compressor.random_restart()
@@ -127,9 +130,15 @@ for epoch in range(c.N_EPOCHS_0):
         "indices": sample_inds
         }
 
-    if epoch % c.TEST_EVERY_N_EPOCHS == 0:
+    if epoch % c.TEST_EVERY_N_EPOCHS == 0 and epoch != 0:
         test_summary = test(compressor, test_loader, loss_fn, recon_loss_w, codebook_loss_w)
         summary.update(test_summary)
+
+    if sum(epoch_l2)/len(epoch_l2) < best_l2_recon_loss:
+        # save the model
+        best_avg_recon_loss = avg_recon_loss
+        torch.save(compressor.state_dict(), f"io/best_epoch_run_{wandb.run.name}.pth")
+        torchaudio.save(f"io/best_epoch_{wandb.run.name}_clip.wav", torch.cat((true_sample, sample), dim=1), sample_rate=44100)
 
     wandb.log(summary)
 
@@ -146,6 +155,7 @@ for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
     epoch_reconstruction_loss = []
     sample = None
     sample_inds = None
+    true_sample = None
 
     for x_imaginary in tqdm(train_loader):
         optimizer.zero_grad()
@@ -161,6 +171,7 @@ for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
         loss.backward()
         optimizer.step()
         sample = ml_representation_to_audio(xhat)
+        true_sample = ml_representation_to_audio(x)
         sample_inds = ind
 
     prop_restarted = compressor.random_restart()
@@ -186,7 +197,7 @@ for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
         # save the model
         best_avg_recon_loss = avg_recon_loss
         torch.save(compressor.state_dict(), f"io/best_epoch_run_{wandb.run.name}.pth")
-        torchaudio.save(f"io/best_epoch_{wandb.run.name}_clip.wav", sample, sample_rate=44100)
+        torchaudio.save(f"io/best_epoch_{wandb.run.name}_clip.wav", torch.cat((true_sample, sample), dim=1), sample_rate=44100)
 
 
 
