@@ -2,13 +2,14 @@ import torch
 import torch.nn as nn
 
 class SpectrogramLoss(nn.Module):
-    def __init__(self, underlying="L2"):
+    def __init__(self, bass_bias=1, underlying="L2"):
         super(SpectrogramLoss, self).__init__()
         self.underlying = underlying
+        self.bass_bias = bass_bias
 
     def forward(self, yhat, y_true):
         B, C, H, W = yhat.size()
-        aranged = 1 + (torch.arange(start=0, end=H) / H)
+        aranged = 1 + self.bass_bias * (torch.arange(start=0, end=H) / H)
         aranged = aranged.unsqueeze(0).unsqueeze(0).unsqueeze(-1)
         aranged = aranged.to(yhat.device)
         weights = aranged.expand(B, C, H, W)
