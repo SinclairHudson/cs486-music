@@ -22,7 +22,7 @@ c = {
     "BATCH_SIZE": 4,
     "LR_0": 0.01,
     "LR_1": 0.005,
-    "VOCAB_SIZE": 256,
+    "VOCAB_SIZE": 512,
     "BETA": 1,
     "SONG_LENGTH": 10,
     "CODEBOOK_LOSS_W": 1,
