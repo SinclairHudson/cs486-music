@@ -64,8 +64,8 @@ test_loader = DataLoader(test_dataset, batch_size=c.BATCH_SIZE, shuffle=False,
 
 compressor = ResCompressor(step_size=16, vocab_size=c.VOCAB_SIZE, beta=c.BETA).to(device)
 
-start_point = "io/best_epoch_run_glad-microwave-77.pth"
-# start_point=None
+# start_point = "io/best_epoch_run_glad-microwave-77.pth"
+start_point=None
 if not start_point is None:
     compressor.load_state_dict(torch.load(start_point))
     print(f"starting from {start_point}.")
