@@ -161,6 +161,7 @@ def train(model: nn.Module) -> None:
         if batch_size != bptt:  # only on last batch
             src_mask = src_mask[:batch_size, :batch_size]
         output = model(data, src_mask)
+        breakpoint()
         loss = criterion(output.view(-1, ntokens), targets)
 
         optimizer.zero_grad()
