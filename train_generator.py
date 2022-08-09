@@ -9,20 +9,21 @@ from tqdm import tqdm
 
 
 c = {
-    "N_EPOCHS": 200,
-    "BATCH_SIZE": 256,
+    "N_EPOCHS": 300,
+    "BATCH_SIZE": 512,
     "LR": 0.01,
     "VOCAB_SIZE": 512,
     "N_FFT": 800,
-    "N_HEAD": 4,
-    "D_HID": 200,
-    "EMBED_SIZE": 200,
-    "N_LAYERS": 3,
+    "N_HEAD": 8,
+    "D_HID": 400,
+    "EMBED_SIZE": 400,
+    "N_LAYERS": 4,
     "DROPOUT": 0.2,
     "TEST_EVERY_N_EPOCHS": 10,
     "RANDOM_STATE": 10,
     "GAMMA": 0.95,
-    "RECEPTIVE_FIELD": 1000,
+    "LR_STEP_SIZE": 5,
+    "RECEPTIVE_FIELD": 2000,
 }
 
 def generate_square_subsequent_mask(sz: int) -> torch.Tensor:
@@ -45,7 +46,7 @@ train, test = train_test_split(train_dataset, test_size=0.3,
 criterion = nn.CrossEntropyLoss()
 model = TransformerModel(c.VOCAB_SIZE, c.EMBED_SIZE, c.N_HEAD, c.D_HID, c.N_LAYERS, c.DROPOUT).to(device)
 optimizer = torch.optim.SGD(model.parameters(), lr=c.LR)
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 100, gamma=c.GAMMA)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, c.LR_STEP_SIZE, gamma=c.GAMMA)
 
 # the transformer is going to take in latent_dim x N sequences, and predicts 
 # the next along the vocabulary. That's going to be softmax'd values over the 
@@ -83,6 +84,7 @@ def evaluate(model):
 
 
 print("beginning training")
+best_val_loss = 0.3
 for e in range(c.N_EPOCHS):
     model.train()
     cross_entropy_loss = []
@@ -105,7 +107,7 @@ for e in range(c.N_EPOCHS):
         optimizer.step()
         cross_entropy_loss.append(loss.item())
 
-    summary = {"learning_rate": scheduler.get_last_lr(),
+    summary = {"learning_rate": scheduler.get_last_lr()[0],
                "mean_CE_loss": sum(cross_entropy_loss)/len(cross_entropy_loss),
                }
 
@@ -113,6 +115,9 @@ for e in range(c.N_EPOCHS):
         # validation
         val_loss = evaluate(model)
         summary.update(val_loss)
+        if val_loss["val_avg_CE_loss"] < best_val_loss:
+            torch.save(model.state_dict(), f"io/{wandb.run.name}_best_val.pth")
+            best_val_loss = val_loss["val_avg_CE_loss"]
 
     scheduler.step()
     print(summary)

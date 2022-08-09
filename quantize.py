@@ -142,11 +142,11 @@ class VectorQuantizer2d(nn.Module):
 
     def dequantize(self, z):
         """
-        Takes int tensor and uses the embedding to create the latent vectors.
+        Takes int tensor, BxHxW, and uses the embedding to create the latent vectors.
+        Output is BxCxHxW
         """
-        z_flattened = z.view(-1, self.e_dim)
-        z_q = self.embedding(z_flattened).view(z.shape)
-        return z_q
+        dequant = self.embedding(z)
+        return dequant.permute(0, 3, 1, 2).contiguous()  # move the channel back to its rightful place
 
     def update_usage(self, min_enc):
         self.usage[min_enc] = self.usage[min_enc] + 1  # if code is used add 1 to usage
@@ -208,7 +208,10 @@ class VectorQuantizer2d(nn.Module):
 
         # reshape back to match original input shape
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
+        # TODO make the min_encoding_indices actually be the right shape!!
+        codes = min_encoding_indices.view(z.shape[:-1])  # drop the channel dim, but otherwise reshape as normal
+
         if return_indices:
-            return z_q, self.loss, min_encoding_indices
+            return z_q, self.loss, codes
         else:
             return z_q

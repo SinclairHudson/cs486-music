@@ -34,3 +34,4 @@ with torch.no_grad():
         _, _, indices = compressor.quantizer(compressor.encoder(x), return_indices=True)
         torch.save(indices, f"{start_point[3:-4]}_sequences/song{i}_indices.pt")
 
+
