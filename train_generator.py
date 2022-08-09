@@ -14,16 +14,16 @@ c = {
     "LR": 0.01,
     "VOCAB_SIZE": 512,
     "N_FFT": 800,
-    "N_HEAD": 8,
-    "D_HID": 400,
-    "EMBED_SIZE": 400,
-    "N_LAYERS": 4,
+    "N_HEAD": 4,
+    "D_HID": 200,
+    "EMBED_SIZE": 200,
+    "N_LAYERS": 3,
     "DROPOUT": 0.2,
     "TEST_EVERY_N_EPOCHS": 10,
     "RANDOM_STATE": 10,
     "GAMMA": 0.95,
-    "LR_STEP_SIZE": 5,
-    "RECEPTIVE_FIELD": 2000,
+    "LR_STEP_SIZE": 100,
+    "RECEPTIVE_FIELD": 2300,
 }
 
 def generate_square_subsequent_mask(sz: int) -> torch.Tensor:
