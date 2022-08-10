@@ -19,13 +19,13 @@ compressor.eval()
 
 def restore(filename: str):
         with torch.no_grad():
-                latent = torch.load(f"best_epoch_run_azure-yogurt-87_sequences/{filename}")
+                latent = torch.load(filename).unsqueeze(0)
                 output_ml = compressor.decoder(compressor.quantizer.dequantize(latent))
                 audio = ml_representation_to_audio(output_ml)
-                torchaudio.save(f"io/{filename}.wav", audio, sample_rate=44100)
+                torchaudio.save(f"second_generation.wav", audio, sample_rate=44100)
 
 if __name__ == "__main__":
-        restore("song1_indices.pt")
+        restore("generated_music.pt")
 
 
 

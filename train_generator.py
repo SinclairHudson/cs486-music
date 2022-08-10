@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 
 c = {
-    "N_EPOCHS": 300,
+    "N_EPOCHS": 500,
     "BATCH_SIZE": 512,
     "LR": 0.01,
     "VOCAB_SIZE": 512,
@@ -17,7 +17,7 @@ c = {
     "N_HEAD": 4,
     "D_HID": 200,
     "EMBED_SIZE": 200,
-    "N_LAYERS": 3,
+    "N_LAYERS": 4,
     "DROPOUT": 0.2,
     "TEST_EVERY_N_EPOCHS": 10,
     "RANDOM_STATE": 10,
@@ -41,7 +41,7 @@ train_dataset = GeneratorDataset("best_epoch_run_azure-yogurt-87_sequences",
 
 train, test = train_test_split(train_dataset, test_size=0.3,
                                random_state=c.RANDOM_STATE,
-                               shuffle=True)
+                               shuffle=False)  # don't shuffle so that songs stay independent
 
 criterion = nn.CrossEntropyLoss()
 model = TransformerModel(c.VOCAB_SIZE, c.EMBED_SIZE, c.N_HEAD, c.D_HID, c.N_LAYERS, c.DROPOUT).to(device)
@@ -84,7 +84,7 @@ def evaluate(model):
 
 
 print("beginning training")
-best_val_loss = 0.3
+best_val_loss = 3.5
 for e in range(c.N_EPOCHS):
     model.train()
     cross_entropy_loss = []
@@ -116,6 +116,7 @@ for e in range(c.N_EPOCHS):
         val_loss = evaluate(model)
         summary.update(val_loss)
         if val_loss["val_avg_CE_loss"] < best_val_loss:
+            print("saving the model")
             torch.save(model.state_dict(), f"io/{wandb.run.name}_best_val.pth")
             best_val_loss = val_loss["val_avg_CE_loss"]
 

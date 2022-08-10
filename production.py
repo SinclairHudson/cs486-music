@@ -17,7 +17,7 @@ def generate_square_subsequent_mask(sz: int) -> torch.Tensor:
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-timesteps = 4000
+timesteps = 2300
 
 c = {
     "N_EPOCHS": 300,
@@ -25,40 +25,47 @@ c = {
     "LR": 0.01,
     "VOCAB_SIZE": 512,
     "N_FFT": 800,
-    "N_HEAD": 8,
-    "D_HID": 400,
-    "EMBED_SIZE": 400,
-    "N_LAYERS": 4,
+    "N_HEAD": 4,
+    "D_HID": 200,
+    "EMBED_SIZE": 200,
+    "N_LAYERS": 3,
     "DROPOUT": 0.2,
     "TEST_EVERY_N_EPOCHS": 10,
     "RANDOM_STATE": 10,
     "GAMMA": 0.95,
-    "LR_STEP_SIZE": 5,
+    "LR_STEP_SIZE": 100,
     "RECEPTIVE_FIELD": 2300,
 }
 
+
 HEIGHT = 23
 
-assert RECEPTIVE_FIELD % HEIGHT == 0  # ensures that we never have partial time steps
+assert c["RECEPTIVE_FIELD"]% HEIGHT == 0  # ensures that we never have partial time steps
 
 stub = torch.load(f"best_epoch_run_azure-yogurt-87_sequences/song1_indices.pt")
-stub = stub.reshape(-1)[-c.RECEPTIVE_FIELD:] # last 
+stub = stub.reshape(-1)[-c["RECEPTIVE_FIELD"]:] # last 
 
 
-src_mask = generate_square_subsequent_mask(c.RECEPTIVE_FIELD).to(device)
+src_mask = generate_square_subsequent_mask(c["RECEPTIVE_FIELD"]).to(device)
 
-model = TransformerModel(c.VOCAB_SIZE, c.EMBED_SIZE, c.N_HEAD, c.D_HID, c.N_LAYERS, c.DROPOUT).to(device)
+model = TransformerModel(c["VOCAB_SIZE"], c["EMBED_SIZE"], c["N_HEAD"], c["D_HID"], c["N_LAYERS"], c["DROPOUT"]).to(device)
+model.load_state_dict(torch.load("io/rich-meadow-15_best_val.pth"))
 
 accumulated_music = []
 
-for step in range(timesteps):
+for step in tqdm(range(timesteps)):
     for _ in range(HEIGHT):
         inp = stub.unsqueeze(1)  # add batch dimension
         inp = inp.to(device)
         output = model(inp, src_mask).squeeze(1)
         # sample from the distribution:
-        next_token = torch.argmax(output)
-        stub = torch.cat((stub, next_token), dim=0)
-        accumulated_music.append(stub[1:])
+        next_token = torch.argmax(output[-1])  # on the last token
+        stub = torch.cat((stub, next_token.unsqueeze(0)), dim=0)
+        accumulated_music.append(stub[:1])
         stub = stub[1:]  # kick the oldest element
+
+generated_sequence = torch.cat(accumulated_music, dim=0)
+latents = generated_sequence.reshape((HEIGHT, -1))
+torch.save(latents.unsqueeze(0), "generated_music.pt")
+
 
