@@ -19,7 +19,7 @@ compressor.eval()
 
 def restore(filename: str):
         with torch.no_grad():
-                latent = torch.load(filename).unsqueeze(0)
+                latent = torch.load(filename)
                 output_ml = compressor.decoder(compressor.quantizer.dequantize(latent))
                 audio = ml_representation_to_audio(output_ml)
                 torchaudio.save(f"second_generation.wav", audio, sample_rate=44100)

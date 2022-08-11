@@ -23,7 +23,7 @@ c = {
     "RANDOM_STATE": 10,
     "GAMMA": 0.95,
     "LR_STEP_SIZE": 100,
-    "RECEPTIVE_FIELD": 2300,
+    "RECEPTIVE_FIELD": 4600,
 }
 
 def generate_square_subsequent_mask(sz: int) -> torch.Tensor:

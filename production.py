@@ -9,6 +9,7 @@ from dataset import LofiDataset
 from torchaudio.transforms import InverseSpectrogram, Spectrogram
 from generator import TransformerModel
 from tqdm import tqdm
+import torch.nn.functional as F
 
 def generate_square_subsequent_mask(sz: int) -> torch.Tensor:
     """Generates an upper-triangular matrix of -inf, with zeros on diag."""
@@ -17,7 +18,7 @@ def generate_square_subsequent_mask(sz: int) -> torch.Tensor:
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-timesteps = 2300
+timesteps = 1000
 
 c = {
     "N_EPOCHS": 300,
@@ -42,7 +43,7 @@ HEIGHT = 23
 
 assert c["RECEPTIVE_FIELD"]% HEIGHT == 0  # ensures that we never have partial time steps
 
-stub = torch.load(f"best_epoch_run_azure-yogurt-87_sequences/song1_indices.pt")
+stub = torch.load(f"best_epoch_run_azure-yogurt-87_sequences/song9_indices.pt")
 stub = stub.reshape(-1)[-c["RECEPTIVE_FIELD"]:] # last 
 
 
@@ -53,13 +54,24 @@ model.load_state_dict(torch.load("io/rich-meadow-15_best_val.pth"))
 
 accumulated_music = []
 
+def max_sample(logits):
+    return torch.argmax(logits)
+
+def softmax_sample(logits):
+    dist = torch.distributions.Categorical(F.softmax(logits, dim=0))
+    return dist.sample()
+
+def softmax_sample_with_temp(logits, temp=1):
+    dist = torch.distributions.Categorical(F.softmax(logits/temp, dim=0))
+    return dist.sample()
+
 for step in tqdm(range(timesteps)):
     for _ in range(HEIGHT):
         inp = stub.unsqueeze(1)  # add batch dimension
         inp = inp.to(device)
         output = model(inp, src_mask).squeeze(1)
         # sample from the distribution:
-        next_token = torch.argmax(output[-1])  # on the last token
+        next_token = softmax_sample_with_temp(output[-1], temp=0.5)
         stub = torch.cat((stub, next_token.unsqueeze(0)), dim=0)
         accumulated_music.append(stub[:1])
         stub = stub[1:]  # kick the oldest element
