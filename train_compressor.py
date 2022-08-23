@@ -150,10 +150,10 @@ optimizer = Adam(compressor.parameters(), lr=c.LR_1)
 
 for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
     print("=" * 10 + f"starting epoch {epoch}" + "=" * 10)
-    epoch_loss_accum = 0
-    l2_accum = 0
-    codebook_loss_accum = 0
-    epoch_reconstruction_loss_accum = 0
+    epoch_loss = []
+    epoch_l2 = []
+    epoch_codebook_loss = []
+    epoch_reconstruction_loss = []
     sample = None
     sample_inds = None
     true_sample = None
@@ -165,10 +165,10 @@ for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
         recon_loss = loss_fn(x, xhat)
         loss = recon_loss_w * recon_loss + codebook_loss_w *codebook_loss
 
-        codebook_loss_accum += codebook_loss.item()
-        epoch_reconstruction_loss_accum += recon_loss.item()
-        epoch_loss_accum += loss.item()
-        l2_accum += torch.mean((x - xhat) ** 2).item()
+        epoch_codebook_loss.append(codebook_loss.item())
+        epoch_reconstruction_loss.append(recon_loss.item())
+        epoch_loss.append(loss.item())
+        epoch_l2.append(torch.mean((x - xhat) ** 2).item())
         loss.backward()
         optimizer.step()
         sample = ml_representation_to_audio(xhat)
@@ -176,14 +176,15 @@ for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
         sample_inds = ind
 
     prop_restarted = compressor.random_restart()
+    embedding = compressor.quantizer.embedding.weight
+    avg_recon_loss = sum(epoch_reconstruction_loss)/len(epoch_reconstruction_loss)
 
-    l = len(train_loader)
     summary = {
         "latent_space_perplexity": compressor.quantizer.perplexity,
-        "avg_epoch_loss": epoch_loss_accum/l,
-        "avg_codebook_loss": codebook_loss_accum/l,
-        "avg_recon_loss": epoch_reconstruction_loss_accum/l,
-        "avg_l2_loss": l2_accum/l,
+        "avg_epoch_loss": sum(epoch_loss)/len(epoch_loss),
+        "avg_codebook_loss": sum(epoch_codebook_loss)/len(epoch_codebook_loss),
+        "avg_recon_loss": avg_recon_loss,
+        "avg_l2_loss": sum(epoch_l2)/len(epoch_l2),
         "proportion_restarted": prop_restarted,
         "indices": sample_inds
         }
@@ -193,9 +194,9 @@ for epoch in range(c.N_EPOCHS_0, c.N_EPOCHS_1):
         summary.update(test_summary)
 
     wandb.log(summary)
-    if l2_accum/l < best_l2_recon_loss:
+    if sum(epoch_l2)/len(epoch_l2) < best_l2_recon_loss:
         # save the model
-        best_avg_recon_loss = l2_accum/l
+        best_avg_recon_loss = avg_recon_loss
         torch.save(compressor.state_dict(), f"io/best_epoch_run_{wandb.run.name}.pth")
         torchaudio.save(f"io/best_epoch_{wandb.run.name}_clip.wav", torch.cat((true_sample, sample), dim=1), sample_rate=44100)
 
