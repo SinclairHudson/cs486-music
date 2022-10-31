@@ -208,10 +208,9 @@ class VectorQuantizer2d(nn.Module):
 
         # reshape back to match original input shape
         z_q = z_q.permute(0, 3, 1, 2).contiguous()
-        # TODO make the min_encoding_indices actually be the right shape!!
-        codes = min_encoding_indices.view(z.shape[:-1])  # drop the channel dim, but otherwise reshape as normal
 
         if return_indices:
+            codes = min_encoding_indices.reshape((z_q.shape[0], z_q.shape[2], z_q.shape[3]))
             return z_q, self.loss, codes
         else:
             return z_q
