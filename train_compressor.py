@@ -7,9 +7,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchaudio.transforms import InverseSpectrogram, Spectrogram
 import pprint
-from utils import spectrogram_to_ml_representation, ml_representation_to_audio
-from loss import SpectrogramLoss
-from resnet_compressor import ResCompressor
+from utils import spectrogram_to_ml_representation, ml_representation_to_audio, indices_to_rgb_image
+from modules.loss import SpectrogramLoss
+from modules.resnet_compressor import ResCompressor
 from test import test
 from sklearn.model_selection import train_test_split
 
@@ -50,7 +50,7 @@ def train(debug_flag=False):
     inv = InverseSpectrogram(n_fft=c.N_FFT)
 
     device = torch.device("cuda:0")
-    train_dataset = LofiDataset("/media/sinclair/datasets/lofi/good_splits",
+    train_dataset = LofiDataset("/media/sinclair/datasets/lofi/train_splits",
                                 spectrogram=s,
                                 length=c.SONG_LENGTH)
 
@@ -128,7 +128,8 @@ def train(debug_flag=False):
             "avg_recon_loss": avg_recon_loss,
             "avg_l2_loss": sum(epoch_l2)/len(epoch_l2),
             "proportion_restarted": prop_restarted,
-            "indices": sample_inds
+            "indices": sample_inds,
+            "latent_code_viz": wandb.Image(indices_to_rgb_image(sample_inds, c.VOCAB_SIZE))
             }
 
         if epoch % c.TEST_EVERY_N_EPOCHS == 0:
@@ -142,7 +143,6 @@ def train(debug_flag=False):
             torchaudio.save(f"io/best_epoch_{wandb.run.name}_clip.wav", torch.cat((true_sample, sample), dim=1), sample_rate=44100)
 
         wandb.log(summary)
-        print(summary)
 
 if __name__ == "__main__":
     train()

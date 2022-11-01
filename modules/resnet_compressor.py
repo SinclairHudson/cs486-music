@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
-from quantize import VQVAEQuantize, VectorQuantizer2d
-from resnet_block import ResBlock
+from modules.quantize import VQVAEQuantize, VectorQuantizer2d
+from modules.resnet_block import ResBlock
 
 class ResEncoder(nn.Module):
     def __init__(self, step_size=4):
