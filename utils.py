@@ -2,6 +2,7 @@ import torch
 from torchaudio.transforms import InverseSpectrogram, Spectrogram
 from colorsys import hsv_to_rgb
 import numpy as np
+import torch.nn.functional as F
 
 def indices_to_rgb_image(indices : torch.Tensor, vocab_size: int) -> torch.Tensor:
     """
@@ -25,8 +26,11 @@ def indices_to_rgb_image(indices : torch.Tensor, vocab_size: int) -> torch.Tenso
 s = Spectrogram(n_fft=800, return_complex=True, power=None)
 inv = InverseSpectrogram(n_fft=800)
 
+high_freq_clip = 112
+
 def ml_representation_to_audio(x):
     assert len(x.shape) == 4
+    x = F.pad(x, (0, 0, high_freq_clip, 0), "constant", 0)
     x = torch.moveaxis(x, 1, -1).contiguous()  # move complex dimension to the end
     x = torch.view_as_complex(x)
     audio_one_channel = inv(x[0].cpu())
@@ -39,5 +43,6 @@ def spectrogram_to_ml_representation(x):
     """
     x_ml = torch.view_as_real(x).contiguous()
     x_ml = torch.moveaxis(x_ml, -1, 1)  # move complex dimensions to channels
+    x_ml = x_ml[:,:,high_freq_clip:, :]  # remove the 100 highest frequency bands; they're usually n
     return x_ml
 
