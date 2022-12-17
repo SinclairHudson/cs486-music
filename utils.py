@@ -26,7 +26,7 @@ def indices_to_rgb_image(indices : torch.Tensor, vocab_size: int) -> torch.Tenso
 s = Spectrogram(n_fft=800, return_complex=True, power=None)
 inv = InverseSpectrogram(n_fft=800)
 
-high_freq_clip = 112
+high_freq_clip = 64
 
 def ml_representation_to_audio(x):
     assert len(x.shape) == 4
